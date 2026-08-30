@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2 Minutes - The Rest Is Yours</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;1,6..96,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-void: #030303;
+            --font-serif: 'Bodoni Moda', serif;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--color-void);
+            overflow: hidden;
+            font-family: var(--font-serif);
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* 光の世界（中央からじわじわと広がる） */
+        #light-world {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(-45deg, #f7f5ec, #e8e3d3, #f2efe6, #dcd5c4);
+            background-size: 400% 400%;
+            animation: breathe 15s ease-in-out infinite;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            
+            /* 初期状態：光は中心に完全に隠れている */
+            -webkit-mask-image: radial-gradient(circle at 50% 50%, black 0px, transparent 0px);
+            mask-image: radial-gradient(circle at 50% 50%, black 0px, transparent 0px);
+        }
+
+        @keyframes breathe {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* 2分後に浮かび上がるコンテンツ */
+        #success-content {
+            text-align: center;
+            opacity: 0;
+            transform: translateY(15px);
+            transition: opacity 4s ease, transform 4s ease;
+            padding: 20px;
+        }
+
+        #success-message {
+            font-style: italic;
+            font-size: clamp(1.1rem, 2.8vw, 1.5rem);
+            color: #222;
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.1em;
+            opacity: 0.6;
+        }
+
+        /* 美しい時計のタイポグラフィ */
+        #count-up-timer {
+            font-size: clamp(3.5rem, 14vw, 11rem);
+            color: #111;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
+            text-shadow: 0 10px 40px rgba(0,0,0,0.06);
+        }
+
+        /* スタート画面のコンテナ（中央配置） */
+        #start-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: opacity 0.8s ease;
+        }
+
+        /* オシャレな英語メッセージ */
+        .start-quote {
+            font-style: italic;
+            font-size: clamp(0.9rem, 2.2vw, 1.2rem);
+            color: rgba(255, 255, 255, 0.45);
+            letter-spacing: 0.15em;
+            margin-bottom: 2rem;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        /* 小さな美しいリング */
+        #start-ring {
+            width: 18px;
+            height: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s ease, border-color 0.4s ease;
+        }
+
+        /* スマホタップ時やPCホバー時のエレガントな反応 */
+        #start-container:active #start-ring,
+        #start-container:hover #start-ring {
+            border-color: rgba(255, 255, 255, 0.9);
+            transform: scale(1.5);
+            background-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 光の世界 -->
+    <div id="light-world">
+        <div id="success-content">
+            <div id="success-message">The rest is yours.</div>
+            <div id="count-up-timer">02:00</div>
+        </div>
+    </div>
+
+    <!-- スタート用UI（メッセージ ＋ リング） -->
+    <div id="start-container">
+        <div class="start-quote">Just two minutes. The rest is yours.</div>
+        <div id="start-ring"></div>
+    </div>
+
+    <script>
+        const WORK_TIME_SECONDS = 120; // 2分間
+        const WORK_TIME_MS = WORK_TIME_SECONDS * 1000;
+
+        const startContainer = document.getElementById('start-container');
+        const lightWorld = document.getElementById('light-world');
+        const successContent = document.getElementById('success-content');
+        const timerDisplay = document.getElementById('count-up-timer');
+
+        let startTimestamp = null;
+        let isRunning = false;
+
+        function getExactMaxRadius() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            return Math.sqrt((w / 2) ** 2 + (h / 2) ** 2);
+        }
+
+        function revealLight(timestamp) {
+            if (!startTimestamp) startTimestamp = timestamp;
+            
+            const elapsed = timestamp - startTimestamp;
+            const linearProgress = Math.min(elapsed / WORK_TIME_MS, 1);
+
+            // 前半ゆっくり、後半加速するイージング
+            const easedProgress = linearProgress < 0.5
+                ? 4 * linearProgress * linearProgress * linearProgress
+                : 1 - Math.pow(-2 * linearProgress + 2, 3) / 2;
+
+            const maxRadius = getExactMaxRadius();
+            const blurAmount = 30; 
+            const currentRadiusPx = easedProgress * (maxRadius + blurAmount);
+
+            const maskStyle = `radial-gradient(circle at 50% 50%, black ${currentRadiusPx}px, transparent ${currentRadiusPx + blurAmount}px)`;
+            lightWorld.style.webkitMaskImage = maskStyle;
+            lightWorld.style.maskImage = maskStyle;
+
+            if (linearProgress < 1) {
+                requestAnimationFrame(revealLight);
+            } else {
+                completeReveal();
+            }
+        }
+
+        function completeReveal() {
+            successContent.style.opacity = '1';
+            successContent.style.transform = 'translateY(0)';
+
+            let countUpSeconds = WORK_TIME_SECONDS;
+
+            function updateTimer() {
+                const m = Math.floor(countUpSeconds / 60);
+                const s = countUpSeconds % 60;
+                timerDisplay.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                countUpSeconds++;
+            }
+
+            updateTimer();
+            setInterval(updateTimer, 1000);
+        }
+
+        // タップ / クリック時の挙動
+        startContainer.addEventListener('click', () => {
+            if (isRunning) return;
+            isRunning = true;
+
+            // コンテナ全体をフワーッと消滅させる
+            startContainer.style.opacity = '0';
+            startContainer.style.pointerEvents = 'none';
+
+            setTimeout(() => {
+                requestAnimationFrame((timestamp) => {
+                    startTimestamp = timestamp;
+                    revealLight(timestamp);
+                });
+            }, 600);
+        });
+    </script>
+</body>
+</html>
