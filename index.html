@@ -1,220 +1,578 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2 Minutes - The Rest Is Yours</title>
-    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;1,6..96,400&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --color-void: #030303;
-            --font-serif: 'Bodoni Moda', serif;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <title>Flip 2-Min Flow</title>
 
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: var(--color-void);
-            overflow: hidden;
-            font-family: var(--font-serif);
-            touch-action: none;
-            -webkit-user-select: none;
-            user-select: none;
-        }
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Flip Flow">
 
-        /* 光の世界（中央からじわじわと広がる） */
-        #light-world {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: linear-gradient(-45deg, #f7f5ec, #e8e3d3, #f2efe6, #dcd5c4);
-            background-size: 400% 400%;
-            animation: breathe 15s ease-in-out infinite;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-            
-            /* 初期状態：光は中心に完全に隠れている */
-            -webkit-mask-image: radial-gradient(circle at 50% 50%, black 0px, transparent 0px);
-            mask-image: radial-gradient(circle at 50% 50%, black 0px, transparent 0px);
-        }
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+      background-color: #000000;
+      color: #e0e0e0;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      position: relative;
+    }
 
-        @keyframes breathe {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+    /* 全画面タッチレイヤー */
+    .touch-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      background: transparent;
+      cursor: pointer;
+    }
 
-        /* 2分後に浮かび上がるコンテンツ */
-        #success-content {
-            text-align: center;
-            opacity: 0;
-            transform: translateY(15px);
-            transition: opacity 4s ease, transform 4s ease;
-            padding: 20px;
-        }
+    body.running .touch-layer {
+      pointer-events: none; 
+    }
 
-        #success-message {
-            font-style: italic;
-            font-size: clamp(1.1rem, 2.8vw, 1.5rem);
-            color: #222;
-            margin-bottom: 1.5rem;
-            letter-spacing: 0.1em;
-            opacity: 0.6;
-        }
+    /* フラッシュ演出用レイヤー */
+    .flash-overlay {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 0%;
+      height: 100%;
+      background: #ffffff;
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0;
+    }
 
-        /* 美しい時計のタイポグラフィ */
-        #count-up-timer {
-            font-size: clamp(3.5rem, 14vw, 11rem);
-            color: #111;
-            line-height: 1;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: -0.02em;
-            text-shadow: 0 10px 40px rgba(0,0,0,0.06);
-        }
+    @keyframes centerFlash {
+      0% { left: 50%; width: 0%; opacity: 1; }
+      40% { left: 0%; width: 100%; opacity: 0.9; }
+      100% { left: 0%; width: 100%; opacity: 0; }
+    }
 
-        /* スタート画面のコンテナ（中央配置） */
-        #start-container {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 20;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            cursor: pointer;
-            transition: opacity 0.8s ease;
-        }
+    .flash-trigger {
+      animation: centerFlash 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
 
-        /* オシャレな英語メッセージ */
-        .start-quote {
-            font-style: italic;
-            font-size: clamp(0.9rem, 2.2vw, 1.2rem);
-            color: rgba(255, 255, 255, 0.45);
-            letter-spacing: 0.15em;
-            margin-bottom: 2rem;
-            text-align: center;
-            white-space: nowrap;
-        }
+    /* 呼吸するように美しく明滅するインフレ・メッセージ（ポップアップ） */
+    @keyframes breathingMessage {
+      0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.97); }
+      50% { opacity: 1; transform: translate(-50%, -50%) scale(1.02); }
+    }
 
-        /* 小さな美しいリング */
-        #start-ring {
-            width: 18px;
-            height: 18px;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: 50%;
-            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s ease, border-color 0.4s ease;
-        }
+    .flow-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      text-align: center;
+      z-index: 110;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.8s ease;
+      width: 90vw;
+    }
 
-        /* スマホタップ時やPCホバー時のエレガントな反応 */
-        #start-container:active #start-ring,
-        #start-container:hover #start-ring {
-            border-color: rgba(255, 255, 255, 0.9);
-            transform: scale(1.5);
-            background-color: rgba(255, 255, 255, 0.1);
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
-        }
-    </style>
+    body.show-message .flow-message {
+      opacity: 1;
+      animation: breathingMessage 3s ease-in-out infinite;
+    }
+
+    .flow-message h1 {
+      font-weight: 300;
+      font-size: clamp(24px, 5vw, 52px);
+      letter-spacing: 4px;
+      color: #ffffff;
+      text-shadow: 0 0 35px rgba(255,255,255,0.6);
+      margin-bottom: 2vh;
+      text-transform: uppercase;
+    }
+
+    .flow-message p {
+      font-weight: 300;
+      font-size: clamp(14px, 2.2vw, 22px);
+      letter-spacing: 3px;
+      color: #cccccc;
+    }
+
+    /* 最初の呼吸メッセージ */
+    @keyframes breathing {
+      0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(0.98); }
+      50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    .initial-breathing-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-weight: 300;
+      font-size: clamp(18px, 3.5vw, 32px);
+      letter-spacing: 4px;
+      color: #666666; 
+      text-align: center;
+      z-index: 20;
+      pointer-events: none;
+      transition: color 0.8s ease;
+      padding: 0 5vw;
+    }
+
+    body.running .initial-breathing-text {
+      color: #ffffff;
+      animation: breathing 4s ease-in-out infinite;
+    }
+
+    body.mode-flow .initial-breathing-text {
+      opacity: 0 !important;
+      pointer-events: none;
+      animation: none;
+    }
+
+    /* 下部に堂々と佇む「インフレする集中モード」のメッセージ */
+    .focus-mode-label {
+      position: absolute;
+      bottom: 8vh;
+      left: 50%;
+      transform: translateX(-50%);
+      font-weight: 300;
+      font-size: clamp(14px, 2.5vh, 20px);
+      letter-spacing: 5px;
+      color: #888888;
+      text-transform: uppercase;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1s ease 0.5s, color 0.5s ease;
+      z-index: 10;
+      width: 90vw;
+    }
+
+    body.mode-flow .focus-mode-label {
+      opacity: 1;
+    }
+
+    body.show-message .focus-mode-label {
+      opacity: 0; 
+    }
+
+    /* タイマーコンテナ */
+    .timer-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      gap: 3vw; 
+      transform: translateY(-3vh); 
+      opacity: 0;
+      transform: translateY(-3vh) scale(0.95);
+      pointer-events: none;
+      transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    body.mode-flow .timer-container {
+      opacity: 1;
+      transform: translateY(-3vh) scale(1);
+      pointer-events: auto;
+    }
+
+    body.show-message .timer-container {
+      opacity: 0;
+      transform: translateY(-3vh) scale(0.95);
+      pointer-events: none;
+    }
+
+    /* フリップユニット本体 */
+    .flip-unit {
+      position: relative;
+      aspect-ratio: 1 / 1; 
+      width: min(42vw, 75vh); 
+      height: auto;
+      perspective: 1200px;
+      border-radius: 3cqmin; 
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+      background-color: #000;
+      container-type: inline-size;
+      transition: width 0.3s ease;
+    }
+
+    @supports not (border-radius: 3cqmin) {
+      .flip-unit { border-radius: 12px; }
+      .top { border-radius: 12px 12px 0 0; }
+      .bottom { border-radius: 0 0 16px 16px; }
+    }
+
+    .flip-unit::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: max(4px, 0.8cqmin); 
+      background-color: #000000;
+      transform: translateY(-50%);
+      z-index: 10;
+    }
+
+    .top, .bottom {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 50%;
+      overflow: hidden;
+      background-color: #242424;
+      backface-visibility: hidden;
+      transform-style: preserve-3d;
+    }
+
+    .top {
+      top: 0;
+      border-radius: 3cqmin 3cqmin 0 0;
+      transform-origin: bottom;
+    }
+
+    .bottom {
+      bottom: 0;
+      border-radius: 0 0 3cqmin 3cqmin;
+      transform-origin: top;
+    }
+
+    .top::after, .bottom::after {
+      content: attr(data-val);
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 200%; 
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 78cqi; 
+      font-weight: 700;
+      letter-spacing: -2px; 
+      color: #f5f5f5;
+    }
+
+    @supports not (font-size: 78cqi) {
+      .top::after, .bottom::after {
+        font-size: clamp(80px, 30vw, 400px);
+      }
+    }
+
+    .top::after { top: 0; }
+    .bottom::after { bottom: 0; }
+
+    .top::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 100%);
+      z-index: 1;
+    }
+
+    /* --- パタパタアニメーション用要素 --- */
+    .flip-top {
+      z-index: 5;
+      animation: flipDownTop 0.25s ease-in forwards;
+    }
+
+    .flip-bottom {
+      z-index: 5;
+      transform: rotateX(90deg);
+      animation: flipDownBottom 0.25s ease-out 0.25s forwards;
+    }
+
+    @keyframes flipDownTop {
+      0% { transform: rotateX(0); filter: brightness(1); }
+      100% { transform: rotateX(-90deg); filter: brightness(0.3); }
+    }
+
+    @keyframes flipDownBottom {
+      0% { transform: rotateX(90deg); filter: brightness(0.3); }
+      100% { transform: rotateX(0); filter: brightness(1); }
+    }
+
+    /* コロン */
+    .colon {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: min(20vw, 35vh); 
+      font-weight: 700;
+      padding-bottom: 2%; 
+      color: #1a1a1a;
+      text-shadow: 0 0 10px rgba(255,255,255,0.1);
+      animation: blink 1s infinite;
+    }
+
+    .running .colon {
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.1; }
+    }
+
+    @media (orientation: portrait) {
+      .timer-container {
+        flex-direction: column; 
+        gap: 2vh; 
+      }
+      .flip-unit {
+        width: min(80vw, 32vh); 
+      }
+      .colon {
+        display: none; 
+      }
+      .focus-mode-label {
+        bottom: 6vh;
+      }
+    }
+  </style>
 </head>
-<body>
+<body id="body">
 
-    <!-- 光の世界 -->
-    <div id="light-world">
-        <div id="success-content">
-            <div id="success-message">The rest is yours.</div>
-            <div id="count-up-timer">02:00</div>
-        </div>
+  <div id="touch-layer" class="touch-layer"></div>
+  <div id="flash-overlay" class="flash-overlay"></div>
+
+  <!-- インフレする褒め言葉＆メッセージのポップアップ -->
+  <div class="flow-message" id="flow-message-box">
+    <h1 id="msg-title">You're in the flow</h1>
+    <p id="msg-sub">Keep going. The rest is yours.</p>
+  </div>
+
+  <div class="initial-breathing-text">
+    Just focus for 2 minutes. The rest is yours.
+  </div>
+
+  <!-- 下部に常駐するインフレする集中モードのラベル -->
+  <div class="focus-mode-label" id="focus-label">
+    KEEP FOCUS
+  </div>
+
+  <div class="timer-container">
+    <div class="flip-unit" id="min-unit">
+      <div class="top" data-val="02"></div>
+      <div class="bottom" data-val="02"></div>
     </div>
-
-    <!-- スタート用UI（メッセージ ＋ リング） -->
-    <div id="start-container">
-        <div class="start-quote">Just two minutes. The rest is yours.</div>
-        <div id="start-ring"></div>
+    <div class="colon">:</div>
+    <div class="flip-unit" id="sec-unit">
+      <div class="top" data-val="00"></div>
+      <div class="bottom" data-val="00"></div>
     </div>
+  </div>
 
-    <script>
-        const WORK_TIME_SECONDS = 120; // 2分間
-        const WORK_TIME_MS = WORK_TIME_SECONDS * 1000;
+  <script>
+    const PREP_TIME = 2 * 60; // 2分
 
-        const startContainer = document.getElementById('start-container');
-        const lightWorld = document.getElementById('light-world');
-        const successContent = document.getElementById('success-content');
-        const timerDisplay = document.getElementById('count-up-timer');
+    let timeLeft = PREP_TIME;
+    let elapsedSeconds = PREP_TIME; 
+    let isRunning = false;
+    let currentMode = 'prep'; 
+    
+    let timerInterval;
+    let messageTimeoutId;
+    let transitionStartTime = 0;
+    
+    let lastTriggeredTier = 2; // 2分到達時に初期ティア発動済みとする
 
-        let startTimestamp = null;
-        let isRunning = false;
+    const bodyEl = document.getElementById('body');
+    const flashOverlay = document.getElementById('flash-overlay');
+    const touchLayer = document.getElementById('touch-layer');
+    const msgTitle = document.getElementById('msg-title');
+    const msgSub = document.getElementById('msg-sub');
+    const focusLabel = document.getElementById('focus-label');
 
-        function getExactMaxRadius() {
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            return Math.sqrt((w / 2) ** 2 + (h / 2) ** 2);
+    function updateDisplayDirect(mStr, sStr) {
+      ['min-unit', 'sec-unit'].forEach(id => {
+        const val = id === 'min-unit' ? mStr : sStr;
+        const unit = document.getElementById(id);
+        if (unit) {
+          unit.querySelectorAll('.top, .bottom').forEach(el => el.setAttribute('data-val', val));
         }
+      });
+    }
 
-        function revealLight(timestamp) {
-            if (!startTimestamp) startTimestamp = timestamp;
+    function flip(unitId, newNumber) {
+      const unit = document.getElementById(unitId);
+      if (!unit) return;
+      const top = unit.querySelector('.top:not(.flip-top)');
+      const bottom = unit.querySelector('.bottom:not(.flip-bottom)');
+      if (!top || !bottom) return;
+      
+      const currentNumber = top.getAttribute('data-val');
+      if (currentNumber === newNumber) return;
+
+      unit.querySelectorAll('.flip-top, .flip-bottom').forEach(el => el.remove());
+
+      const flipTop = document.createElement('div');
+      flipTop.className = 'top flip-top';
+      flipTop.setAttribute('data-val', currentNumber);
+
+      const flipBottom = document.createElement('div');
+      flipBottom.className = 'bottom flip-bottom';
+      flipBottom.setAttribute('data-val', newNumber);
+
+      unit.appendChild(flipTop);
+      unit.appendChild(flipBottom);
+
+      top.setAttribute('data-val', newNumber);
+
+      flipTop.addEventListener('animationend', () => {
+        flipTop.remove();
+      });
+
+      flipBottom.addEventListener('animationend', () => {
+        bottom.setAttribute('data-val', newNumber);
+        flipBottom.remove();
+      });
+    }
+
+    function updateDisplayFlip(mStr, sStr) {
+      flip('min-unit', mStr);
+      flip('sec-unit', sStr);
+    }
+
+    function renderCurrentTime(useFlip = false) {
+      if (currentMode === 'prep') {
+        const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+        const s = (timeLeft % 60).toString().padStart(2, '0');
+        updateDisplayDirect(m, s);
+      } else {
+        const m = Math.floor(elapsedSeconds / 60).toString().padStart(2, '0');
+        const s = (elapsedSeconds % 60).toString().padStart(2, '0');
+        if (useFlip) {
+          updateDisplayFlip(m, s);
+        } else {
+          updateDisplayDirect(m, s);
+        }
+      }
+    }
+
+    // インフレする褒め言葉のセットを切り替える関数
+    function setTierContent(tier) {
+      if (tier === 2) {
+        msgTitle.textContent = "You're in the flow";
+        msgSub.textContent = "Keep going. The rest is yours.";
+        focusLabel.textContent = "KEEP FOCUS • THE FLOW AWAITS";
+      } else if (tier === 5) {
+        msgTitle.textContent = "Amazing Focus!";
+        msgSub.textContent = "You are completely unstoppable right now.";
+        focusLabel.textContent = "UNSTOPPABLE MOMENTUM • KEEP BURNING";
+      } else if (tier === 10) {
+        msgTitle.textContent = "Legendary Deep Work";
+        msgSub.textContent = "Absolute mastery of time, mind, and space.";
+        focusLabel.textContent = "LEGENDARY DEEP WORK • PURE GENIUS";
+      } else if (tier === 15) {
+        msgTitle.textContent = "Pure Genius";
+        msgSub.textContent = "You have transcended ordinary productivity altogether.";
+        focusLabel.textContent = "TRANSCENDENT STATE • UNBREAKABLE FOCUS";
+      } else if (tier === 20) {
+        msgTitle.textContent = "Unstoppable Force";
+        msgSub.textContent = "Operating in a completely different dimension of thought.";
+        focusLabel.textContent = "OTHERWORLDLY FLOW • MAXIMUM VELOCITY";
+      } else if (tier === 25) {
+        msgTitle.textContent = "Time to Rest?";
+        msgSub.textContent = "The system suggests a break... but who could possibly stop you now?";
+        focusLabel.textContent = "BEYOND THE POMODORO • TOO POWERFUL TO STOP";
+      }
+    }
+
+    // 演出を発動する（呼吸する美しい出現イベント。表示時間を約2倍の 8.5秒 に延長！）
+    function triggerFlowTransition(tier) {
+      setTierContent(tier);
+      transitionStartTime = Date.now();
+
+      flashOverlay.classList.remove('flash-trigger');
+      void flashOverlay.offsetWidth; 
+      flashOverlay.classList.add('flash-trigger');
+
+      bodyEl.classList.add('show-message');
+
+      clearTimeout(messageTimeoutId);
+      messageTimeoutId = setTimeout(() => {
+        bodyEl.classList.remove('show-message');
+        renderCurrentTime(false);
+      }, 8500); // 8.5秒間たっぷり味わえるように延長！
+    }
+
+    function startTimer(e) {
+      if (e) e.stopPropagation();
+      if (isRunning) return; 
+
+      isRunning = true;
+      bodyEl.classList.add('running'); 
+      
+      timerInterval = setInterval(() => {
+        if (currentMode === 'prep') {
+          timeLeft--;
+          renderCurrentTime();
+
+          if (timeLeft <= 0) {
+            clearInterval(timerInterval);
             
-            const elapsed = timestamp - startTimestamp;
-            const linearProgress = Math.min(elapsed / WORK_TIME_MS, 1);
+            currentMode = 'flow';
+            elapsedSeconds = PREP_TIME; // 120秒（2分）からスタート
+            bodyEl.classList.remove('mode-prep');
+            bodyEl.classList.add('mode-flow');
+            
+            // 2分到達の演出
+            triggerFlowTransition(2);
+            
+            timerInterval = setInterval(() => {
+              elapsedSeconds++;
+              
+              // インフレ判定：5分(300), 10分(600), 15分(900), 20分(1200), 25分(1500)のジャストタイミング
+              if (elapsedSeconds === 300 && lastTriggeredTier < 5) {
+                lastTriggeredTier = 5;
+                triggerFlowTransition(5);
+              } else if (elapsedSeconds === 600 && lastTriggeredTier < 10) {
+                lastTriggeredTier = 10;
+                triggerFlowTransition(10);
+              } else if (elapsedSeconds === 900 && lastTriggeredTier < 15) {
+                lastTriggeredTier = 15;
+                triggerFlowTransition(15);
+              } else if (elapsedSeconds === 1200 && lastTriggeredTier < 20) {
+                lastTriggeredTier = 20;
+                triggerFlowTransition(20);
+              } else if (elapsedSeconds === 1500 && lastTriggeredTier < 25) {
+                lastTriggeredTier = 25;
+                triggerFlowTransition(25);
+              }
 
-            // 前半ゆっくり、後半加速するイージング
-            const easedProgress = linearProgress < 0.5
-                ? 4 * linearProgress * linearProgress * linearProgress
-                : 1 - Math.pow(-2 * linearProgress + 2, 3) / 2;
-
-            const maxRadius = getExactMaxRadius();
-            const blurAmount = 30; 
-            const currentRadiusPx = easedProgress * (maxRadius + blurAmount);
-
-            const maskStyle = `radial-gradient(circle at 50% 50%, black ${currentRadiusPx}px, transparent ${currentRadiusPx + blurAmount}px)`;
-            lightWorld.style.webkitMaskImage = maskStyle;
-            lightWorld.style.maskImage = maskStyle;
-
-            if (linearProgress < 1) {
-                requestAnimationFrame(revealLight);
-            } else {
-                completeReveal();
-            }
+              // メッセージ表示中（8.5秒間）は時計のカウントアップ・flipを一時停止（演出に全集中させる）
+              const isMessageShowing = (Date.now() - transitionStartTime) < 8500;
+              renderCurrentTime(!isMessageShowing);
+            }, 1000);
+          }
         }
+      }, 1000);
+    }
 
-        function completeReveal() {
-            successContent.style.opacity = '1';
-            successContent.style.transform = 'translateY(0)';
+    touchLayer.addEventListener('click', startTimer);
+    touchLayer.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      startTimer(e);
+    });
 
-            let countUpSeconds = WORK_TIME_SECONDS;
-
-            function updateTimer() {
-                const m = Math.floor(countUpSeconds / 60);
-                const s = countUpSeconds % 60;
-                timerDisplay.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-                countUpSeconds++;
-            }
-
-            updateTimer();
-            setInterval(updateTimer, 1000);
-        }
-
-        // タップ / クリック時の挙動
-        startContainer.addEventListener('click', () => {
-            if (isRunning) return;
-            isRunning = true;
-
-            // コンテナ全体をフワーッと消滅させる
-            startContainer.style.opacity = '0';
-            startContainer.style.pointerEvents = 'none';
-
-            setTimeout(() => {
-                requestAnimationFrame((timestamp) => {
-                    startTimestamp = timestamp;
-                    revealLight(timestamp);
-                });
-            }, 600);
-        });
-    </script>
+    renderCurrentTime();
+  </script>
 </body>
 </html>
